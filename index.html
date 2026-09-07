@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1a2e">
+<title>Mandy Web — Chat with Mandy</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+body {
+  font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: #12121f;
+  color: #e8e8f0;
+  display: flex; flex-direction: column;
+  height: 100vh; height: 100dvh;
+  overflow: hidden;
+}
+button { font-family: inherit; cursor: pointer; }
+
+/* ---------- Lock screen ---------- */
+#lock { position: fixed; inset: 0; background: #12121f; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px; }
+#lock h1 { color: #b39dff; font-size: 26px; }
+#lock p { color: #8888aa; font-size: 15px; text-align: center; }
+#pin { width: 220px; padding: 14px; font-size: 24px; text-align: center; border-radius: 12px; border: 2px solid #3a2a6a; background: #1e1e32; color: #fff; letter-spacing: 8px; }
+#pin:focus { outline: 2px solid #7c4dff; }
+#unlockBtn { padding: 14px 32px; font-size: 18px; border-radius: 12px; border: none; background: #7c4dff; color: #fff; font-weight: bold; }
+#lockErr { color: #ff6b6b; min-height: 20px; font-size: 14px; }
+
+/* ---------- Header ---------- */
+header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; background: #1a1a2e;
+  border-bottom: 2px solid #2a2a4a; flex-shrink: 0;
+}
+.avatar { width: 42px; height: 42px; border-radius: 50%; background: #7c4dff; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+.hname { flex: 1; min-width: 0; }
+.hname .n { font-size: 17px; font-weight: bold; color: #fff; }
+.hname .s { font-size: 12px; color: #7ee787; }
+.hname .s.busy { color: #ffc861; }
+.hbtn {
+  width: 44px; height: 44px; border-radius: 12px; border: none;
+  background: #2a2a4a; color: #b39dff; font-size: 20px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.hbtn.on { background: #7c4dff; color: #fff; }
+
+/* ---------- Messages ---------- */
+#msgs { flex: 1; overflow-y: auto; padding: 12px; scroll-behavior: smooth; }
+.msg { max-width: 88%; margin-bottom: 10px; padding: 10px 14px; border-radius: 16px; font-size: 16px; line-height: 1.45; white-space: pre-wrap; word-wrap: break-word; }
+.msg.me { background: #7c4dff; color: #fff; margin-left: auto; border-bottom-right-radius: 4px; }
+.msg.mandy { background: #23233d; color: #e8e8f0; margin-right: auto; border-bottom-left-radius: 4px; }
+.msg .who { font-size: 11px; font-weight: bold; opacity: .75; margin-bottom: 3px; }
+.msg .t { font-size: 10px; opacity: .6; margin-top: 4px; }
+.msg a { color: #ffd761; }
+.att { display: block; margin-top: 8px; padding: 10px; background: rgba(0,0,0,.25); border-radius: 10px; color: #ffd761; text-decoration: none; font-size: 14px; }
+.att.audio { padding: 4px; }
+.sysmsg { text-align: center; color: #77779a; font-size: 12px; margin: 8px 0; }
+#typing { display: none; padding: 8px 16px; color: #b39dff; font-size: 14px; font-style: italic; }
+#typing.show { display: block; }
+
+/* ---------- Composer ---------- */
+#composer { display: flex; gap: 8px; padding: 10px; background: #1a1a2e; border-top: 2px solid #2a2a4a; flex-shrink: 0; align-items: flex-end; }
+.cbtn {
+  width: 52px; height: 52px; border-radius: 14px; border: none;
+  background: #2a2a4a; color: #b39dff; font-size: 22px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.cbtn.recording { background: #ff3b5c; color: #fff; animation: pulse 1s infinite; }
+@keyframes pulse { 50% { opacity: .6; } }
+#txt {
+  flex: 1; padding: 14px; font-size: 16px; border-radius: 14px;
+  border: 2px solid #2a2a4a; background: #12121f; color: #fff; min-width: 0;
+}
+#txt:focus { outline: none; border-color: #7c4dff; }
+#sendBtn { background: #7c4dff; color: #fff; }
+
+/* ---------- Call overlay ---------- */
+#call { display: none; position: fixed; inset: 0; background: #17122e; z-index: 50; flex-direction: column; align-items: center; justify-content: center; gap: 24px; padding: 24px; }
+#call.show { display: flex; }
+#callAvatar { width: 110px; height: 110px; border-radius: 50%; background: #7c4dff; display: flex; align-items: center; justify-content: center; font-size: 54px; animation: pulse 2s infinite; }
+#callName { font-size: 26px; font-weight: bold; color: #fff; }
+#callStatus { font-size: 15px; color: #b39dff; min-height: 22px; text-align: center; }
+#callEnd { padding: 18px 40px; border-radius: 50px; border: none; background: #ff3b5c; color: #fff; font-size: 18px; font-weight: bold; }
+#callHint { font-size: 13px; color: #8888aa; text-align: center; max-width: 340px; }
+
+.toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: #2a2a4a; color: #fff; padding: 10px 18px; border-radius: 12px; font-size: 14px; z-index: 99; max-width: 90%; text-align: center; }
+</style>
+</head>
+<body>
+
+<!-- Lock screen -->
+<div id="lock">
+  <h1>👩‍💻 Mandy Web</h1>
+  <p>Chat with Mandy — your personal AI assistant.<br>Enter your PIN to unlock.</p>
+  <input type="password" id="pin" inputmode="numeric" placeholder="PIN" aria-label="Enter your PIN" autocomplete="off">
+  <button id="unlockBtn">Unlock</button>
+  <div id="lockErr" role="alert"></div>
+</div>
+
+<!-- Header -->
+<header>
+  <div class="avatar" aria-hidden="true">👩‍💻</div>
+  <div class="hname">
+    <div class="n">Mandy</div>
+    <div class="s" id="status">Online</div>
+  </div>
+  <button class="hbtn" id="ttsBtn" title="Speak replies aloud" aria-label="Toggle speaking replies aloud">🔇</button>
+  <button class="hbtn" id="callBtn" title="Call Mandy" aria-label="Start a voice call with Mandy">📞</button>
+</header>
+
+<!-- Messages -->
+<div id="msgs" aria-live="polite" aria-label="Chat messages"></div>
+<div id="typing">Mandy is thinking…</div>
+
+<!-- Composer -->
+<div id="composer">
+  <button class="cbtn" id="attBtn" aria-label="Attach a file" title="Attach a file">📎</button>
+  <button class="cbtn" id="micBtn" aria-label="Record a voice note" title="Record a voice note">🎤</button>
+  <input type="text" id="txt" placeholder="Message Mandy…" aria-label="Message Mandy" autocomplete="off">
+  <button class="cbtn" id="sendBtn" aria-label="Send message" title="Send">➤</button>
+</div>
+<input type="file" id="filePick" style="display:none" aria-hidden="true">
+
+<!-- Call overlay -->
+<div id="call" role="dialog" aria-label="Voice call with Mandy">
+  <div id="callAvatar">👩‍💻</div>
+  <div id="callName">Mandy</div>
+  <div id="callStatus">Calling…</div>
+  <button id="callEnd">✕ End call</button>
+  <div id="callHint">Just speak naturally. Everything you say is sent to Mandy and she answers out loud, hands-free.</div>
+</div>
+
+<script>
+/* ================= CONFIG ================= */
+const AGENT_ID   = "6a30d635a4015e87269bfe30";
+const CONV_ID    = "6a30d63ac4136b72838b76e0";
+const API_BASE   = "https://app.base44.com/api/agents/" + AGENT_ID;
+const UPLOAD_URL = "https://superagent-269bfe30.base44.app/functions/jambo3Media";
+const API_KEY    = "8e49734d1f124bd48e798d6b558ec03f";
+const PIN        = "113355";
+
+/* ================= STATE ================= */
+let messages = [];          // rendered conversation
+let lastMsgId = null;
+let ttsOn = false;
+let sending = false;
+let recorder = null, recChunks = [], recording = false;
+let inCall = false, recog = null, callBusy = false;
+
+const $ = id => document.getElementById(id);
+const msgsEl = $("msgs"), txtEl = $("txt"), typingEl = $("typing");
+
+/* ================= HELPERS ================= */
+function toast(t, ms) {
+  const d = document.createElement("div");
+  d.className = "toast"; d.textContent = t;
+  document.body.appendChild(d);
+  setTimeout(() => d.remove(), ms || 2600);
+}
+function esc(s) { const d = document.createElement("div"); d.textContent = s || ""; return d.innerHTML; }
+function now() { return new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}); }
+
+function speak(text) {
+  if (!ttsOn || !text) return;
+  try {
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 1; u.pitch = 1;
+    speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
+/* ================= API ================= */
+async function fetchConversation() {
+  const r = await fetch(API_BASE + "/conversations/" + CONV_ID, {
+    headers: { "api_key": API_KEY }
+  });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+}
+
+async function sendMessage(content, fileUrls) {
+  const body = { content };
+  if (fileUrls && fileUrls.length) body.file_urls = fileUrls;
+  const r = await fetch(API_BASE + "/conversations/" + CONV_ID + "/messages", {
+    method: "POST",
+    headers: { "api_key": API_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+}
+
+async function uploadFile(file) {
+  const fd = new FormData();
+  fd.append("file", file);
+  const r = await fetch(UPLOAD_URL, { method: "POST", body: fd });
+  if (!r.ok) throw new Error("Upload failed");
+  const j = await r.json();
+  if (!j.success) throw new Error("Upload failed");
+  return j.url;
+}
+
+/* ================= RENDERING ================= */
+function visible(m) { return m && !m.hidden && m.content; }
+
+function renderMessages(all, silent) {
+  const vis = (all || []).filter(visible);
+  let fresh = [];
+  if (lastMsgId === null) {
+    fresh = vis;
+    messages = vis;
+  } else {
+    const idx = vis.findIndex(m => m.id === lastMsgId);
+    if (idx === -1) { fresh = []; messages = vis; }
+    else { fresh = vis.slice(idx + 1); messages = vis; }
+  }
+  const last = vis[vis.length - 1];
+  if (last) lastMsgId = last.id;
+
+  if (fresh.length) {
+    for (const m of fresh) appendMsg(m, silent);
+    msgsEl.scrollTop = msgsEl.scrollHeight;
+    // speak newest assistant reply (only if it arrived while polling, not mid-refresh after send)
+    const lastFresh = fresh[fresh.length - 1];
+    if (lastFresh && lastFresh.role === "assistant" && !silent) speak(lastFresh.content);
+  }
+}
+
+function appendMsg(m, silent) {
+  const me = m.role === "user";
+  const d = document.createElement("div");
+  d.className = "msg " + (me ? "me" : "mandy");
+  d.setAttribute("role", "listitem");
+  let html = '<div class="who">' + (me ? "You" : "👩‍💻 Mandy") + "</div>";
+  html += "<div>" + esc(m.content) + "</div>";
+  (m.file_urls || []).forEach(u => {
+    const nm = decodeURIComponent(u.split("/").pop() || "file");
+    if (/\.(mp3|wav|m4a|webm|ogg|aac)$/i.test(u) || /vn_/.test(nm)) {
+      html += '<div class="att audio"><audio controls preload="none" style="width:100%" src="' + u + '"></audio></div>';
+    } else {
+      html += '<a class="att" href="' + u + '" download>📄 ' + esc(nm) + " — download</a>';
+    }
+  });
+  html += '<div class="t">' + (m.created_date ? new Date(m.created_date).toLocaleString([], {day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}) : now()) + "</div>";
+  d.innerHTML = html;
+  d.addEventListener("click", () => { speechSynthesis.cancel(); const u2 = new SpeechSynthesisUtterance(m.content); speechSynthesis.speak(u2); });
+  msgsEl.appendChild(d);
+  if (!silent) msgsEl.scrollTop = msgsEl.scrollHeight;
+}
+
+function addSys(text) {
+  const d = document.createElement("div");
+  d.className = "sysmsg"; d.textContent = text;
+  msgsEl.appendChild(d);
+  msgsEl.scrollTop = msgsEl.scrollHeight;
+}
+
+/* ================= SEND FLOW ================= */
+async function doSend(content, fileUrls) {
+  if (!content && !(fileUrls && fileUrls.length)) return;
+  if (sending) { toast("Please wait, Mandy is still answering…"); return; }
+  sending = true;
+  $("status").textContent = "Thinking…"; $("status").classList.add("busy");
+  typingEl.classList.add("show");
+  try {
+    appendMsg({ role: "user", content: content || "📎 Attachment", file_urls: fileUrls, created_date: new Date().toISOString() });
+    await sendMessage(content, fileUrls);
+    await refresh(true);   // pull the reply from the server
+  } catch (e) {
+    addSys("⚠️ Could not send: " + e.message + ". Check your internet connection.");
+    toast("Send failed: " + e.message);
+  } finally {
+    sending = false;
+    typingEl.classList.remove("show");
+    $("status").textContent = "Online"; $("status").classList.remove("busy");
+  }
+}
+
+$("sendBtn").addEventListener("click", () => {
+  const t = txtEl.value.trim();
+  if (!t) return;
+  txtEl.value = "";
+  doSend(t);
+});
+txtEl.addEventListener("keydown", e => {
+  if (e.key === "Enter") { e.preventDefault(); $("sendBtn").click(); }
+});
+
+/* ================= ATTACHMENTS ================= */
+$("attBtn").addEventListener("click", () => $("filePick").click());
+$("filePick").addEventListener("change", async e => {
+  const f = e.target.files[0];
+  e.target.value = "";
+  if (!f) return;
+  toast("Uploading " + f.name + "…", 4000);
+  try {
+    const url = await uploadFile(f);
+    await doSend("📎 Attachment: " + f.name, [url]);
+  } catch (err) { toast("Upload failed: " + err.message); }
+});
+
+/* ================= VOICE NOTES ================= */
+$("micBtn").addEventListener("click", async () => {
+  if (recording) { stopRecording(); return; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { toast("Voice notes need a modern browser like Chrome."); return; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    recChunks = [];
+    recorder = new MediaRecorder(stream);
+    recorder.ondataavailable = e => { if (e.data && e.data.size) recChunks.push(e.data); };
+    recorder.onstop = () => {
+      stream.getTracks().forEach(t => t.stop());
+      const blob = new Blob(recChunks, { type: recorder.mimeType || "audio/webm" });
+      const nm = "vn_" + Date.now() + ".webm";
+      const f = new File([blob], nm, { type: blob.type });
+      toast("Sending voice note…", 4000);
+      uploadFile(f)
+        .then(url => doSend("🎤 Voice note from Mandy Web", [url]))
+        .catch(err => toast("Voice note upload failed: " + err.message));
+    };
+    recorder.start();
+    recording = true;
+    $("micBtn").classList.add("recording");
+    $("micBtn").textContent = "⏹";
+    $("micBtn").setAttribute("aria-label", "Stop recording and send voice note");
+    toast("Recording… tap the red button to send.", 3500);
+  } catch (err) { toast("Microphone blocked. Allow microphone access and try again."); }
+});
+
+function stopRecording() {
+  if (recorder && recorder.state !== "inactive") recorder.stop();
+  recording = false;
+  $("micBtn").classList.remove("recording");
+  $("micBtn").textContent = "🎤";
+  $("micBtn").setAttribute("aria-label", "Record a voice note");
+}
+
+/* ================= TTS TOGGLE ================= */
+$("ttsBtn").addEventListener("click", () => {
+  ttsOn = !ttsOn;
+  $("ttsBtn").textContent = ttsOn ? "🔊" : "🔇";
+  $("ttsBtn").classList.toggle("on", ttsOn);
+  if (!ttsOn) speechSynthesis.cancel();
+  toast(ttsOn ? "Mandy will speak her replies aloud." : "Speaking off.");
+  localStorage.setItem("mw_tts", ttsOn ? "1" : "0");
+});
+
+/* ================= CALL MODE ================= */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+$("callBtn").addEventListener("click", () => {
+  if (!SR) { toast("Voice calling needs Chrome. You can still send voice notes with the mic button."); return; }
+  if (inCall) return;
+  startCall();
+});
+
+function startCall() {
+  inCall = true; callBusy = false;
+  $("call").classList.add("show");
+  $("callStatus").textContent = "Connecting…";
+  speechSynthesis.cancel();
+  recog = new SR();
+  recog.continuous = true;
+  recog.interimResults = false;
+  recog.lang = "en-US";
+  recog.onresult = e => {
+    const res = e.results[e.results.length - 1];
+    if (res.isFinal && !callBusy) {
+      const said = res[0].transcript.trim();
+      if (said) handleCallSpeech(said);
+    }
+  };
+  recog.onerror = e => {
+    if (e.error === "not-allowed") { toast("Microphone blocked. Allow mic access."); endCall(); }
+  };
+  recog.onend = () => { if (inCall) { try { recog.start(); } catch (e) {} } };
+  try { recog.start(); $("callStatus").textContent = "Connected — just start talking"; }
+  catch (e) { $("callStatus").textContent = "Call error"; }
+  setTimeout(() => { if (inCall) $("callStatus").textContent = "Listening…"; }, 1500);
+}
+
+async function handleCallSpeech(said) {
+  callBusy = true;
+  $("callStatus").textContent = "You said: " + said;
+  try { recog.stop(); } catch (e) {}   // pause mic while Mandy thinks/speaks
+  try {
+    const reply = await sendMessage(said);
+    const text = (reply && reply.content) || "Sorry, I did not get that.";
+    $("callStatus").textContent = "Mandy: " + text.slice(0, 80);
+    const u = new SpeechSynthesisUtterance(text);
+    u.onend = () => { callBusy = false; if (inCall) { $("callStatus").textContent = "Listening…"; try { recog.start(); } catch (e) {} } };
+    u.onerror = () => { callBusy = false; if (inCall) { try { recog.start(); } catch (e) {} } };
+    speechSynthesis.speak(u);
+    await refresh(true);
+  } catch (e) {
+    $("callStatus").textContent = "Connection problem — trying again";
+    callBusy = false;
+    if (inCall) { try { recog.start(); } catch (err) {} }
+  }
+}
+
+function endCall() {
+  inCall = false; callBusy = false;
+  $("call").classList.remove("show");
+  speechSynthesis.cancel();
+  if (recog) { try { recog.abort(); } catch (e) {} recog = null; }
+  toast("Call ended");
+}
+$("callEnd").addEventListener("click", endCall);
+
+/* ================= POLLING ================= */
+async function refresh(silent) {
+  try {
+    const conv = await fetchConversation();
+    renderMessages(conv.messages, silent);
+  } catch (e) { /* offline; try again next tick */ }
+}
+
+async function poll() {
+  if (sending) return;             // don't poll mid-send
+  if (document.hidden) return;      // save battery when tab is hidden
+  await refresh(false);
+}
+
+/* ================= LOCK ================= */
+function unlock() {
+  const v = $("pin").value.trim();
+  if (v === PIN) {
+    sessionStorage.setItem("mw_ok", "1");
+    $("lock").style.display = "none";
+    $("pin").value = "";
+    toast("Welcome, Adrian! 👋");
+    refresh(false);
+  } else {
+    $("lockErr").textContent = "Wrong PIN. Please try again.";
+    $("pin").value = "";
+    $("pin").focus();
+  }
+}
+$("unlockBtn").addEventListener("click", unlock);
+$("pin").addEventListener("keydown", e => { if (e.key === "Enter") unlock(); });
+
+/* ================= INIT ================= */
+ttsOn = localStorage.getItem("mw_tts") === "1";
+if (ttsOn) { $("ttsBtn").textContent = "🔊"; $("ttsBtn").classList.add("on"); }
+if (sessionStorage.getItem("mw_ok") === "1") $("lock").style.display = "none";
+refresh(false);
+setInterval(poll, 10000);
+window.addEventListener("online", () => toast("Back online"));
+window.addEventListener("offline", () => toast("You are offline — messages will send once you reconnect"));
+</script>
+</body>
+</html>
